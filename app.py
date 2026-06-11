@@ -93,6 +93,20 @@ def get_image_quality(image_bytes):
 
 
 
+def compress_image_for_inference(image_bytes, max_side=1600, quality=85):
+    """压缩并轻微缩放图片，减少上传体积并尽量保留地质细节。"""
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    original_width, original_height = img.size
+
+    if max(original_width, original_height) > max_side:
+        img.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+
+    output = io.BytesIO()
+    img.save(output, format="JPEG", quality=quality, optimize=True, progressive=True)
+    return output.getvalue(), img.size
+
+
+
 def classify_image_type_prompt():
     """返回统一的图像分类与解译要求。"""#规则说明书
     return """
@@ -380,7 +394,10 @@ with col1:
 
     if uploaded_file is not None:#检查图片
         image_bytes = uploaded_file.getvalue()#获取图片字节
+        compressed_image_bytes, compressed_size = compress_image_for_inference(image_bytes)#压缩图片用于推理
         st.image(image_bytes, caption="已上传地质图像", use_container_width=True)
+        if compressed_size != Image.open(io.BytesIO(image_bytes)).size:
+            st.caption(f"推理时已自动压缩为 {compressed_size[0]} × {compressed_size[1]}，以提升速度并减少传输体积。")
         image_quality = get_image_quality(image_bytes)#获取图片质量
         st.json(image_quality)#显示图片质量
         if image_quality["图像太小"] or image_quality["图像太暗"] or image_quality["图像太亮"] or image_quality["图像太模糊"]:
@@ -425,7 +442,7 @@ with col2:
 
                 with st.spinner("AI 正在进行结构化地质解译，请稍候..."):
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
-                        tmp_file.write(image_bytes)
+                        tmp_file.write(compressed_image_bytes)
                         st.session_state.tmp_path = tmp_file.name
 
                     try:
