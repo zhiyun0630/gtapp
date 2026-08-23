@@ -5,3 +5,7 @@ __pycache__/
 *.docx
 *.tmp
 geo_memory.jsonl
+.venv/
+venv/
+.idea/
+projects/

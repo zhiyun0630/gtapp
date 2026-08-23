@@ -2,3 +2,5 @@ streamlit
 openai
 pillow
 python-docx
+matplotlib
+numpy
